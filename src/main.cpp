@@ -17,8 +17,9 @@ int main(int argc, char* argv[])
 	int epollfd = epoll_create(5); 
 	assert(epollfd != -1); 
 
-	struct epoll_event* events[MAX_EVENT_NUM]; 
+	struct epoll_event events[MAX_EVENT_NUM]; 
 
+	setnonblocking(listenfd); 
 	addfd(epollfd, listenfd); 
 	while(!stop){
 		int num; 

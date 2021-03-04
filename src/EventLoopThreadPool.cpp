@@ -1,6 +1,6 @@
 #include "EventLoopThreadPool.h"
 
-EventLoopThreadPool::EventLoopThreadPool(int num)
+EventLoopThreadPool::EventLoopThreadPool(int num): curr_ptr_id(0)
 {
 	max_thread_num = num; 
 	eventloop_ptr = new EventLoopThread<HttpConn>[max_thread_num]; 
@@ -17,10 +17,15 @@ void EventLoopThreadPool::addNewConn(int fd)
 {
 	int index = getNextLoop();
         int notify = fd; 	
-	send(eventloop_ptr[index]->pipefd[1], &notify, sizeof(notify), 0);  // notify eventloop thread 
+	send(eventloop_ptr[index].pipefd[1], &notify, sizeof(notify), 0);  // notify eventloop thread 
+}
+
+int getNextLoop()
+{
+	return (curr_ptr_id++) % max_thread_num ; 
 }
 
 EventLoopThreadPool::~EventLoopThreadPool()
 {
-	delete []eventloop_ptr; 
+	delete [] eventloop_ptr; 
 }

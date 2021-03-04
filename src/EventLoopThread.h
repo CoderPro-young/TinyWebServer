@@ -5,6 +5,11 @@
 #include <sys/socket.h>
 #include <web_function.h>
 
+#define NEWCONN 1
+#define DEALTIMEOUTCONN -1
+
+
+
 template<typename T>
 class EventLoopThread{
 	private:
@@ -28,6 +33,14 @@ class EventLoopThread{
 			
 		}
 		
+		int fun(int info){
+			int ret = info;  
+			if(info >= 0){
+				ret = 1; 
+			}
+			
+			return ret; 
+		}
 		void* start_thread(void* arg); 
 		int start(); 
 		void run(); 

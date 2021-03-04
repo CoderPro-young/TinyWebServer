@@ -3,7 +3,8 @@
 
 class EventLoopThreadPool{
 	private:
-		int max_thread_num; 
+		int max_thread_num;
+	        int curr_ptr_id; 	
 		EventLoopThread<HttpConn>* eventloop_ptr;
 	public:
 		EventLoopThreadPool(int num); 

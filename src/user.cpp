@@ -25,3 +25,18 @@ int user::addUser(int epollfd, int listenfd)
 	}
 	return connfd; 
 }
+
+int user::getIndex()
+{
+
+}
+
+void user::serverBusy()
+{
+
+}
+
+void user::handler(int connfd, const epoll_event& event)
+{
+
+}

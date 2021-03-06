@@ -1,17 +1,24 @@
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include "EventLoopThreadPool.h"
+#include "web_function.h"
 
-char port[6] = "2021"; 
+#define DEFPORT 2021 
+#define EVENTLOOPNUM 16
+#define MAX_EVENT_NUM 16
+
+int port = DEFPORT; 
 
 int main(int argc, char* argv[])
 {
+
 	if(argc == 2){
-		strcpy(port, argv[1]);   // may overflow
+		port = atoi(argv[1]);    // may overflow
 	}
 
-	EventLoopThreadPool eventLoopThreadPool_; 
-	eventLoopThreadPool_.start(); 
+	EventLoopThreadPool eventLoopThreadPool_(EVENTLOOPNUM); 
+	eventLoopThreadPool_.startPool(); 
 
 	int listenfd = init_listen(); 
 
@@ -22,6 +29,13 @@ int main(int argc, char* argv[])
 
 	setnonblocking(listenfd); 
 	addfd(epollfd, listenfd); 
+
+	int sig_pipefd[2]; 
+	int ret = socketpair( PF_UNIX, SOCK_STREAM, 0, sig_pipefd ); 
+	assert(ret != -1); 
+
+	bool stop = false; 
+
 	while(!stop){
 		int num; 
 		if((num = epoll_wait(epollfd, events, MAX_EVENT_NUM, -1)) < 0){
@@ -38,7 +52,7 @@ int main(int argc, char* argv[])
 				eventLoopThreadPool_.addNewConn(fd); 
 				
 			}
-			else if(fd == sig_pipefd[0] && (events[i].event & EPOLLIN)){
+			else if(fd == sig_pipefd[0] && (events[i].events & EPOLLIN)){
 				
 			}
 

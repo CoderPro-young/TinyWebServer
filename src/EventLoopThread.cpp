@@ -1,12 +1,23 @@
 #include "EventLoopThread.h" 
 #include <sys/epoll.h>
 #include <errno.h>
+#include <assert.h>
+//#include "web_function.h"
 
 #define MAX_EVENT_SIZE 1024 
 #define INFOSIZE 4096
 
-template<typename T>
-int EventLoopThread<T>::start()
+static void unix_error(const char* err)
+{
+
+}
+
+static void addfd(int epollfd, int fd)
+{
+
+}
+
+int EventLoopThread::start()
 {
 	if(pthread_create(&tid, nullptr, start_thread, this) < 0){
 		unix_error("thread create failed"); 
@@ -21,8 +32,7 @@ int EventLoopThread<T>::start()
 	return 0; 
 }
 
-template<typename T>
-void* EventLoopThread<T>::start_thread(void* arg)
+void* EventLoopThread::start_thread(void* arg)
 {
 	EventLoopThread* thread_ = (EventLoopThread*)arg; 
 	thread_->loop(); // start up eventloop
@@ -38,8 +48,7 @@ void* EventLoopThread<T>::addConn(int fd)
 
 
 
-template<typename T>
-void EventLoopThread<T>::loop()
+void EventLoopThread::loop()
 {
 	struct epoll_event events[MAX_EVENT_SIZE]; 
 	while(!stop){
@@ -69,14 +78,18 @@ void EventLoopThread<T>::loop()
 							int listenfd = info[j]; 
 							int connfd = connect(listenfd, (SA*)&client_address, client_addrlen); 
 							*/
-							int listenfd = info[j]; 
-							int ret = user_.addUser(epollfd, listenfd); 
-							assert( ret != -1); 
-							addfd(epollfd, ret);  
-							//server_conn_sum++; // global atmoic variable 
-							break; 
+							{
+								int listenfd = info[j]; 
+								int ret = user_.addUser(epollfd, listenfd); 
+								assert( ret != -1); 
+								addfd(epollfd, ret);  
+								//server_conn_sum++; // global atmoic variable 
+								break; 
+							}
 						case DEALTIMEOUTCONN:
-							break; 
+							{
+								break; 
+							}
 					
 					}
 				}

@@ -9,7 +9,7 @@
 //#include "web_function.h"
 #include <arpa/inet.h>
 
-int setnonblocking(int fd){
+static int setnonblocking(int fd){
 
 }
 

@@ -3,7 +3,7 @@
 EventLoopThreadPool::EventLoopThreadPool(int num): curr_ptr_id(0)
 {
 	max_thread_num = num; 
-	eventloop_ptr = new EventLoopThread<HttpConn>[max_thread_num]; 
+	eventloop_ptr = new EventLoopThread[max_thread_num]; 
 }
 
 void EventLoopThreadPool::startPool()

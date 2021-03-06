@@ -69,7 +69,34 @@ bool HttpConn::read()
 	return true; 
 }
 
-/*
+HttpConn::LINE_STATUS HTTPCONN::parse_line()
+{
+	char temp; 
+	while(m_ckecked_idx < m_read_idx){
+		temp = m_read_buf[m_checked_idx]; 
+		if(temp == '\r'){
+			if(m_checked_idx + 1 == m_read_idx){
+				return LINE_OPEN; 	
+			}
+			else if(m_read_buf[m_checked_idx + 1] == '\n'){
+				m_read_buf[m_checked_idx++] = '\0'; 
+				m_read_buf[m_checked_idx++] = '\0'; 
+				return LINE_OK; 
+			}
+			return LINE_BAD; 
+		}		
+		else if(temp == '\n'){
+			if(m_checked_idx > 1 && m_read_buf[m_checked_idx - 1] == '\r'){
+				m_read_buf[m_checked_idx - 1] = '\0'; 
+				m_read_buf[m_checked_idx++] = '\0'; 
+				return LINE_OK; 
+			}
+			return LINE_BAD; 
+		}
+	}
+	return LINE_OPEN; 
+}
+
 HttpConn::HTTP_CODE HttpConn::process_read()
 {
 	LINE_STATUS line_status = LINE_OK;
@@ -81,8 +108,30 @@ HttpConn::HTTP_CODE HttpConn::process_read()
 		m_start_line = m_check_idx; 
 		switch(m_check_state)
 		{
-			case 
+			case CHECK_STATE_REQUESTLINE:
+				{
+					ret = parse_request_line(text); 
+					if(ret == BAD_REQUEST){
+						return BAD_REQUEST; 
+					}
+					break; 
+				}	
+			case CHECK_STATE_HEADER:
+				{
+					ret = parse_headers(text); 
+					if(ret == GET_REQUEST){
+					
+					}
+					else if(ret == BAD_REQUEST){
+					
+					}
+					break; 
+				}
+			case CHECK_STATE_CONTENT:
+				{
+					ret = parse_content(text); 
+					break; 
+				}
 		}
 	}
 }
-*/ 

@@ -1,4 +1,9 @@
 #include "EventLoopThread.h" 
+#include <sys/epoll.h>
+#include <errno.h>
+
+#define MAX_EVENT_SIZE 1024 
+#define INFOSIZE 4096
 
 template<typename T>
 int EventLoopThread<T>::start()
@@ -48,9 +53,14 @@ void EventLoopThread<T>::loop()
 			if(fd == pipefd[0] && (events[i].events & EPOLLIN)){
 				int info[INFOSIZE]; 
 				int info_num = recv(pipefd[0], info, INFOSIZE, 0); 
-				assert( info_num != -1); 
+				//assert( info_num != -1); 
+				if(info_num == -1){
+					if(errno != EAGAIN){
+						break; 
+					}
+				}
 				for(int j = 0; j < info_num; j++){
-					switch fun(info[j])
+					switch (fun(info[j]))
 					{
 						case NEWCONN:
 							/*
@@ -60,7 +70,7 @@ void EventLoopThread<T>::loop()
 							int connfd = connect(listenfd, (SA*)&client_address, client_addrlen); 
 							*/
 							int listenfd = info[j]; 
-							int ret = user_.addUser(listenfd); 
+							int ret = user_.addUser(epollfd, listenfd); 
 							assert( ret != -1); 
 							addfd(epollfd, ret);  
 							//server_conn_sum++; // global atmoic variable 
@@ -73,7 +83,7 @@ void EventLoopThread<T>::loop()
 				
 			}
 			else{
-				user_.handler(connfd, events[i].events); 
+				user_.handler(fd, events[i]); 
 			}
 
 		}	

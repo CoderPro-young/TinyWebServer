@@ -2,9 +2,10 @@
 #include <stdlib.h>
 #include "EventLoopThreadPool.h"
 
+char port[6] = "2021"; 
+
 int main(int argc, char* argv[])
 {
-	char port[6] = "2021"; 
 	if(argc == 2){
 		strcpy(port, argv[1]);   // may overflow
 	}

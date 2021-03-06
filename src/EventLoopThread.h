@@ -3,11 +3,12 @@
 
 #include <pthread.h>
 #include <sys/socket.h>
-#include <web_function.h>
+#include "user.h"
+#include "web_function.h"
 
 #define NEWCONN 1
 #define DEALTIMEOUTCONN -1
-
+#define EVENT_TABLE_SIZE 1024
 
 
 template<typename T>
@@ -18,7 +19,7 @@ class EventLoopThread{
 		bool stop; 
 		int epollfd; 
 		int conn_sum; 
-		int pipefd[2]; // used to received new connection 
+		user user_;
 	public:
 		EventLoopThread(): conn_sum(0), stop(false){
 			epollfd = epoll_create(EVENT_TABLE_SIZE);  
@@ -33,6 +34,7 @@ class EventLoopThread{
 			
 		}
 		
+		int pipefd[2]; // used to received new connection 
 		int fun(int info){
 			int ret = info;  
 			if(info >= 0){
@@ -44,6 +46,6 @@ class EventLoopThread{
 		void* start_thread(void* arg); 
 		int start(); 
 		void run(); 
-}
+}; 
 
 #endif

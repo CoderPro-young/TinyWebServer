@@ -1,6 +1,14 @@
 #ifndef HTTPCONN_H_
 #define HTTPCONN_H_
 
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+const int READ_BUFFER_SIZE = 4096; 
+const int WRITE_BUFFER_SIZE = 4096; 
+const int FILENAME_LEN = 128;
+
 class HttpConn{
 	public:
 		enum METHOD
@@ -39,35 +47,16 @@ class HttpConn{
 		HttpConn(){}
 		~HttpConn(){}
 	public:
-		void init(int , const struct sockaddr_in*);
+		void init(int , const struct sockaddr_in&);
 	      
 		bool read();  // read data from socket to user buffer
 		void process();  // parse data 
 		void write();   // write data to socket
-	
-	private:
-		void init(); 
-		HTTP_CODE process_read();
-	    bool process_write(HTTP_CODE ret);
-	    HTTP_CODE parse_request_line(char *text);
-	    HTTP_CODE parse_headers(char *text);
-	    HTTP_CODE parse_content(char *text);
-	    HTTP_CODE do_request();
-	    char *get_line() { return m_read_buf + m_start_line; };
-	    LINE_STATUS parse_line();
-	    void unmap();
-	    bool add_response(const char *format, ...);
-	    bool add_content(const char *content);
-	    bool add_status_line(int status, const char *title);
-	    bool add_headers(int content_length);
-	    bool add_content_type();
-	    bool add_content_length(int content_length);
-	    bool add_linger();
-	    bool add_blank_line();
-	
+
 	private:
 	    int m_sockfd;
-	    sockaddr_in m_address;
+	    struct sockaddr_in m_client_address;
+	    int m_client_addrlen; 
 	    char m_read_buf[READ_BUFFER_SIZE];
 	    int m_read_idx;
 	    int m_checked_idx;
@@ -84,6 +73,7 @@ class HttpConn{
 	    bool m_linger;
 	    char *m_file_address;
 	    struct stat m_file_stat;
+	    /*
 	    struct iovec m_iv[2];
 	    int m_iv_count;
 	    int cgi;        //是否启用的POST
@@ -91,6 +81,26 @@ class HttpConn{
 	    int bytes_to_send;
 	    int bytes_have_send;
 	    char *doc_root;
-}
+		*/
+	private:
+		void init(); 
+		HTTP_CODE process_read();
+	    	bool process_write(HTTP_CODE ret);
+	    	HTTP_CODE parse_request_line(char *text);
+	    	HTTP_CODE parse_headers(char *text);
+	    	HTTP_CODE parse_content(char *text);
+	    	HTTP_CODE do_request();
+	    	char *get_line() { return m_read_buf + m_start_line; };
+	    	LINE_STATUS parse_line();
+	    	void unmap();
+	    	bool add_response(const char *format, ...);
+	    	bool add_content(const char *content);
+	    	bool add_status_line(int status, const char *title);
+	    	bool add_headers(int content_length);
+	    	bool add_content_type();
+	    	bool add_content_length(int content_length);
+	    	bool add_linger();
+	    	bool add_blank_line();
+}; 
 
 #endif 

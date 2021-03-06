@@ -20,7 +20,7 @@ void EventLoopThreadPool::addNewConn(int fd)
 	send(eventloop_ptr[index].pipefd[1], &notify, sizeof(notify), 0);  // notify eventloop thread 
 }
 
-int getNextLoop()
+int EventLoopThreadPool::getNextLoop()
 {
 	return (curr_ptr_id++) % max_thread_num ; 
 }

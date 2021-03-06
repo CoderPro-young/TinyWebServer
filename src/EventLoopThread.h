@@ -4,14 +4,13 @@
 #include <pthread.h>
 #include <sys/socket.h>
 #include "user.h"
-#include "web_function.h"
+#include <assert.h>
+//#include "web_function.h"
 
 #define NEWCONN 1
 #define DEALTIMEOUTCONN -1
 #define EVENT_TABLE_SIZE 1024
 
-
-template<typename T>
 class EventLoopThread{
 	private:
 		pthread_t tid; 
@@ -43,7 +42,7 @@ class EventLoopThread{
 			
 			return ret; 
 		}
-		void* start_thread(void* arg); 
+		static void* start_thread(void* arg); 
 		int start(); 
 		void run(); 
 }; 

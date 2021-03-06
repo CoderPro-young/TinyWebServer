@@ -8,7 +8,7 @@ class EventLoopThreadPool{
 	private:
 		int max_thread_num;
 	        int curr_ptr_id; 	
-		EventLoopThread<HttpConn>* eventloop_ptr;
+		EventLoopThread* eventloop_ptr;
 		int getNextLoop(); 
 	public:
 		EventLoopThreadPool(int num); 

@@ -21,7 +21,7 @@ int main(int argc, char* argv[])
 	eventLoopThreadPool_.startPool(); 
 
 	int listenfd = init_listen(); 
-
+	printf("listenfd is %d \n", listenfd); 
 	int epollfd = epoll_create(5); 
 	assert(epollfd != -1); 
 

@@ -73,7 +73,6 @@ class HttpConn{
 	    bool m_linger;
 	    char *m_file_address;
 	    struct stat m_file_stat;
-	    /*
 	    struct iovec m_iv[2];
 	    int m_iv_count;
 	    int cgi;        //是否启用的POST
@@ -81,7 +80,6 @@ class HttpConn{
 	    int bytes_to_send;
 	    int bytes_have_send;
 	    char *doc_root;
-		*/
 	private:
 		void init(); 
 		HTTP_CODE process_read();

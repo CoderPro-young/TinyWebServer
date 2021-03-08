@@ -23,12 +23,13 @@ int user::addUser(int epollfd, int listenfd)
 		bzero(&client_address, sizeof(client_address)); 
 		connfd = accept(listenfd, (SA*)&client_address, &client_addrlen); 
 	}
+	modfd(epollfd, listenfd, EPOLLIN); 
 	return connfd; 
 }
 
 int user::getIndex()
 {
-
+	return 0; 
 }
 
 void user::serverBusy()
@@ -38,5 +39,13 @@ void user::serverBusy()
 
 void user::handler(int connfd, const epoll_event& event)
 {
-
+	if(event.events & EPOLLIN){
+		int index = fd_to_index[connfd]; 
+		http_ptr[index].read(); 
+		http_ptr[index].process(); 
+		http_ptr[index].write(); 
+	}
+	else if(event.events & EPOLLOUT){
+		http_ptr[index].write(); 
+	}
 }

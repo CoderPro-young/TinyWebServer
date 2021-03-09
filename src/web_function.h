@@ -17,6 +17,7 @@ extern int port;
 
 int init_listen(){
 	int listenSocket = socket(AF_INET, SOCK_STREAM, 0);
+	int on = 1; 
         assert(listenSocket != -1); 
 	printf("init_listen\n"); 		
 	struct sockaddr_in server_address; 
@@ -26,6 +27,10 @@ int init_listen(){
 	server_address.sin_family = AF_INET; 
 	server_address.sin_port = htons(port); 
 	inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr);
+
+	if((setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) < 0){
+
+	}
 	
 	int ret = bind(listenSocket, (struct sockaddr*)&server_address, socklen); 
 	assert( ret != -1); 	
@@ -45,19 +50,22 @@ void unix_error(const char* err){
 	fprintf(stderr, "%s", err);	
 }
 
-void addfd(int epollfd, int fd){
-	struct epoll_event ev; 
-	ev.data.fd = fd; 
-	ev.events = EPOLLIN | EPOLLET; 
-	int ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev); 
-	assert( ret != -1); 
-}
-
 int setnonblocking(int fd){
 	int old_option = fcntl(fd, F_GETFL); 
 	int new_option = old_option | O_NONBLOCK; 
 	fcntl(fd, F_SETFL, new_option); 
 	return old_option; 
 }
+
+void addfd(int epollfd, int fd){
+	struct epoll_event ev; 
+	ev.data.fd = fd; 
+	ev.events = EPOLLIN | EPOLLET; 
+	int ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev); 
+	assert( ret != -1); 
+	setnonblocking(fd); 
+}
+
+
 
 #endif 

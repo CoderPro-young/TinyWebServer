@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
 			// others 	
 			break; 
 		}
-		
+		printf("should accept connect \n"); 
 		for(int i = 0; i < num; i++){
 			int fd = events[i].data.fd; 
 			if(fd == listenfd){

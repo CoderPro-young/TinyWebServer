@@ -13,7 +13,7 @@ class HttpConn{
 	public:
 		enum METHOD
 		{
-			Get = 0,
+			GET = 0,
 			Post
 		};
 
@@ -47,14 +47,15 @@ class HttpConn{
 		HttpConn(){}
 		~HttpConn(){}
 	public:
-		void init(int , const struct sockaddr_in&);
-	      
+		void init(int, int , const struct sockaddr_in&);
+	    void close_conn( bool real_close = true );//关闭连接
 		bool read();  // read data from socket to user buffer
 		void process();  // parse data 
-		void write();   // write data to socket
+		bool write();   // write data to socket
 
 	private:
 	    int m_sockfd;
+		int m_epollfd; 
 	    struct sockaddr_in m_client_address;
 	    int m_client_addrlen; 
 	    char m_read_buf[READ_BUFFER_SIZE];
@@ -66,6 +67,7 @@ class HttpConn{
 	    CHECK_STATE m_check_state;
 	    METHOD m_method;
 	    char m_real_file[FILENAME_LEN];
+		char doc_root[FILENAME_LEN]; 
 	    char *m_url;
 	    char *m_version;
 	    char *m_host;
@@ -79,7 +81,7 @@ class HttpConn{
 	    char *m_string; //存储请求头数据
 	    int bytes_to_send;
 	    int bytes_have_send;
-	    char *doc_root;
+	    //char *doc_root;
 	private:
 		void init(); 
 		HTTP_CODE process_read();

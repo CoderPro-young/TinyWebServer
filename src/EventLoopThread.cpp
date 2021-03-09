@@ -2,6 +2,7 @@
 #include <sys/epoll.h>
 #include <errno.h>
 #include <assert.h>
+#include <fcntl.h>
 //#include "web_function.h"
 
 #define MAX_EVENT_SIZE 1024 
@@ -12,9 +13,23 @@ static void unix_error(const char* err)
 
 }
 
+static int setnonblocking(int fd)
+{
+	int old_option = fcntl(fd, F_GETFL); 
+	int new_option = old_option | O_NONBLOCK; 
+	fcntl(fd, F_SETFL, new_option); 
+	return old_option; 
+
+}
+
 static void addfd(int epollfd, int fd)
 {
-
+	struct epoll_event ev; 
+	ev.data.fd = fd; 
+	ev.events = EPOLLIN | EPOLLET; 
+	int ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev); 
+	assert( ret != -1); 
+	setnonblocking(fd); 
 }
 
 int EventLoopThread::start()
@@ -51,6 +66,8 @@ void* EventLoopThread<T>::addConn(int fd)
 void EventLoopThread::loop()
 {
 	struct epoll_event events[MAX_EVENT_SIZE]; 
+	printf("start event loop\n"); 
+	addfd(epollfd, pipefd[0]); 
 	while(!stop){
 		int num = epoll_wait(epollfd, events, MAX_EVENT_SIZE, -1); 
 		if(num < 0){
@@ -62,13 +79,14 @@ void EventLoopThread::loop()
 			if(fd == pipefd[0] && (events[i].events & EPOLLIN)){
 				int info[INFOSIZE]; 
 				int info_num = recv(pipefd[0], info, INFOSIZE, 0); 
+				printf("info_num is %d \n", info_num); 
 				//assert( info_num != -1); 
 				if(info_num == -1){
 					if(errno != EAGAIN){
 						break; 
 					}
 				}
-				for(int j = 0; j < info_num; j++){
+				for(int j = 0; j < info_num/sizeof(int); j++){
 					switch (fun(info[j]))
 					{
 						case NEWCONN:
@@ -81,8 +99,8 @@ void EventLoopThread::loop()
 							{
 								int listenfd = info[j]; 
 								int ret = user_.addUser(epollfd, listenfd); 
-								assert( ret != -1); 
-								addfd(epollfd, ret);  
+								//assert( ret != -1); 
+								//addfd(epollfd, ret);  
 								//server_conn_sum++; // global atmoic variable 
 								break; 
 							}

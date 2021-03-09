@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -8,6 +9,21 @@
 #include <netinet/in.h>
 //#include "web_function.h"
 #include <arpa/inet.h>
+#include <sys/epoll.h> 
+#include <fcntl.h>
+#include <stdarg.h>
+#include <sys/mman.h>
+#include <sys/uio.h>
+
+const char* ok_200_title = "OK";
+const char* error_400_title = "Bad Request";
+const char* error_400_form = "Your request has bad syntax or is inherently impossible to satisfy.\n";
+const char* error_403_title = "Forbidden";
+const char* error_403_form = "You do not have permission to get file from this server.\n";
+const char* error_404_title = "Not Found";
+const char* error_404_form = "The requested file was not found on this server.\n";
+const char* error_500_title = "Internal Error";
+const char* error_500_form = "There was an unusual problem serving the requested file.\n";
 
 static int setnonblocking(int fd){
 	int old_option = fcntl(fd, F_GETFL); 
@@ -21,12 +37,18 @@ static void modfd(int epollfd, int fd, int ev){
 	event.data.fd = fd; 
 
 	event.events = ev | EPOLLET | EPOLLONESHOT | EPOLLRDHUP; 
-	epoll_ctl(epollfd, EPOLL_CTL_MOD, &event); 
+	epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &event); 
 }
 
-void HttpConn::init(int connfd, const struct sockaddr_in& client_address)
+void HttpConn::close_conn(bool real_close)
+{
+
+}
+
+void HttpConn::init(int epollfd,int connfd, const struct sockaddr_in& client_address)
 {
 	m_sockfd = connfd; 
+	m_epollfd = epollfd; 
 	m_client_address = client_address; 
 	int m_client_addrlen = sizeof(client_address); 
 	setnonblocking(m_sockfd); 
@@ -40,7 +62,7 @@ void HttpConn::init()
     m_check_state = CHECK_STATE_REQUESTLINE;
     m_linger = false;
 
-    m_method = Get;
+    m_method = GET;
     m_url = 0;
     m_version = 0;
     m_content_length = 0;
@@ -79,10 +101,10 @@ bool HttpConn::read()
 	return true; 
 }
 
-HttpConn::LINE_STATUS HTTPCONN::parse_line()
+HttpConn::LINE_STATUS HttpConn::parse_line()
 {
 	char temp; 
-	while(m_ckecked_idx < m_read_idx){
+	while(m_checked_idx < m_read_idx){
 		temp = m_read_buf[m_checked_idx]; 
 		if(temp == '\r'){
 			if(m_checked_idx + 1 == m_read_idx){
@@ -116,7 +138,7 @@ HttpConn::HTTP_CODE HttpConn::process_read()
 
 	while((m_check_state == CHECK_STATE_CONTENT && line_status == LINE_OK) || (line_status = parse_line()) == LINE_OK){
 		text = get_line(); // haven't update m_start_line 
-		m_start_line = m_check_idx; 
+		m_start_line = m_checked_idx; 
 		switch(m_check_state)
 		{
 			case CHECK_STATE_REQUESTLINE:
@@ -173,7 +195,7 @@ HttpConn::HTTP_CODE HttpConn::parse_request_line(char* text)
 	if(strcasecmp(m_version, "HTTP/1.1") != 0){
 		return BAD_REQUEST; 
 	}
-	if(strcasecmp(m_url, "http://", 7) == 0){
+	if(strncasecmp(m_url, "http://", 7) == 0){
 		m_url += 7; 
 		m_url = strchr(m_url, '/'); 
 	}
@@ -188,7 +210,7 @@ HttpConn::HTTP_CODE HttpConn::parse_request_line(char* text)
 	return NO_REQUEST; 
 }
 
-HttpConn::HTTPCODE HttpConn::parse_headers(char* text)
+HttpConn::HTTP_CODE HttpConn::parse_headers(char* text)
 {
 	if(text[0] == '\0'){
 		// reach the '\r\n' under the header 
@@ -200,7 +222,7 @@ HttpConn::HTTPCODE HttpConn::parse_headers(char* text)
 	else if(strncasecmp(text, "Connection:", 11) == 0){
 		text += 11; 
 		text += strspn(text, " \t"); 
-		if(strcasemp(text, "Keep-alive") == 0){
+		if(strcasecmp(text, "Keep-alive") == 0){
 			m_linger = true; 
 		}
 	}
@@ -212,33 +234,48 @@ HttpConn::HTTPCODE HttpConn::parse_headers(char* text)
 	return NO_REQUEST; 
 }
 
-HttpConn::HTTPCODE HttpConn::do_request()
+HttpConn::HTTP_CODE HttpConn::do_request()
 {
 	//need xiugai 
+	strcpy(doc_root, "../page"); 
+	strcpy(m_real_file, doc_root); 
 	if(strlen(m_url) == 1){
-		strcat(m_url, "default.html"); 
+		strcat(m_real_file, "/default.html"); 
 	}
-	struct stat m_url_stat; 
+	else{
+		strcat(m_real_file, m_url); 
+	}
+	printf("real file is %s \n", m_real_file); 
+	//struct stat m_url_stat; 
 	
-	if(stat(m_url, &m_url_stat) < 0){
+	if(stat(m_real_file, &m_file_stat) < 0){
+		printf("NO_RESOURCE\n"); 
 		return NO_RESOURCE; 
 	}
 
-	if(!(m_url_stat.st_mode & S_IROTH)){
+	if(!(m_file_stat.st_mode & S_IROTH)){
 		return FORBIDDEN_REQUEST; 
 	}
 
-	if(S_ISDIR(m_url_stat.stat)){
+	if(S_ISDIR(m_file_stat.st_mode)){
 		return BAD_REQUEST; 
 	}
 
-	int fd = open(m_url, O_RDONLY); 
-	m_file_address = (char*)mmap(0, m_file_stat.st_size, PROT_READ, fd, 0); 
+	int fd = open(m_real_file, O_RDONLY); 
+	m_file_address = (char*)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0); 
 	close(fd); 
 	return FILE_REQUEST; 
 }
 
-bool http_conn::write()
+void HttpConn::unmap()
+{
+	if(m_file_address){
+		munmap(m_file_address, m_file_stat.st_size); 
+		m_file_address = 0; 
+	}
+}
+
+bool HttpConn::write()
 {
     int temp = 0;
 
@@ -296,63 +333,66 @@ bool http_conn::write()
     }
 }
 
-bool http_conn::add_response(const char *format, ...)
+bool HttpConn::add_response(const char *format, ...)
 {
-    if (m_write_idx >= WRITE_BUFFER_SIZE)
-        return false;
+    if (m_write_idx >= WRITE_BUFFER_SIZE){
+		fprintf(stderr, "too data\n"); 
+		return false;
+	}
+
+        
     va_list arg_list;
     va_start(arg_list, format);
     int len = vsnprintf(m_write_buf + m_write_idx, WRITE_BUFFER_SIZE - 1 - m_write_idx, format, arg_list);
     if (len >= (WRITE_BUFFER_SIZE - 1 - m_write_idx))
     {
+		fprintf(stderr, "too len\n"); 
         va_end(arg_list);
         return false;
     }
     m_write_idx += len;
     va_end(arg_list);
 
-    LOG_INFO("request:%s", m_write_buf);
-
     return true;
 }
 
-bool http_conn::add_status_line(int status, const char *title)
+bool HttpConn::add_status_line(int status, const char *title)
 {
     return add_response("%s %d %s\r\n", "HTTP/1.1", status, title);
 }
 
-bool http_conn::add_headers(int content_len)
+bool HttpConn::add_headers(int content_len)
 {
     return add_content_length(content_len) && add_linger() &&
            add_blank_line();
 }
 
-bool http_conn::add_content_length(int content_len)
+bool HttpConn::add_content_length(int content_len)
 {
     return add_response("Content-Length:%d\r\n", content_len);
 }
 
-bool http_conn::add_content_type()
+bool HttpConn::add_content_type()
 {
     return add_response("Content-Type:%s\r\n", "text/html");
 }
 
-bool http_conn::add_linger()
+bool HttpConn::add_linger()
 {
     return add_response("Connection:%s\r\n", (m_linger == true) ? "keep-alive" : "close");
 }
 
-bool http_conn::add_blank_line()
+bool HttpConn::add_blank_line()
 {
     return add_response("%s", "\r\n");
 }
 
-bool http_conn::add_content(const char *content)
+bool HttpConn::add_content(const char *content)
 {
     return add_response("%s", content);
 }
 
-bool http_conn::process_write(HTTP_CODE ret)
+bool HttpConn::process_write(HTTP_CODE ret)
 {
     switch (ret)
     {
@@ -382,9 +422,11 @@ bool http_conn::process_write(HTTP_CODE ret)
     }
     case FILE_REQUEST:
     {
+		printf("file_request in \n"); 
         add_status_line(200, ok_200_title);
         if (m_file_stat.st_size != 0)
         {
+			printf("file len is not 0\n"); 
             add_headers(m_file_stat.st_size);
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;
@@ -396,10 +438,14 @@ bool http_conn::process_write(HTTP_CODE ret)
         }
         else
         {
+			printf("file len is 0\n"); 
             const char *ok_string = "<html><body></body></html>";
             add_headers(strlen(ok_string));
-            if (!add_content(ok_string))
-                return false;
+            if (!add_content(ok_string)){
+				fprintf(stderr, "add content\n"); 
+				return false;
+			}
+                
         }
     }
     default:
@@ -416,11 +462,16 @@ void HttpConn::process()
 {
 	HTTP_CODE read_ret = process_read(); 
 	if(read_ret == BAD_REQUEST){
-		modfd(m_epolfd, m_sockfd, EPOLLIN); 
+		modfd(m_epollfd, m_sockfd, EPOLLIN); 
 	}
-
+	if(read_ret == FILE_REQUEST){
+		printf("file request.\n"); 
+	}
+	printf("process_read\n"); 
 	bool write_ret = process_write(read_ret); 
+	printf("process_write\n"); 
 	if(!write_ret){
+		printf("close conn\n"); 
 		close_conn(); 
 	}
 	else{

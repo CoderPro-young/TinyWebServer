@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
+#include <signal.h>
 extern int port; 
 #define LISTENQ 4096 
 #define debug
@@ -64,6 +65,16 @@ void addfd(int epollfd, int fd){
 	int ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev); 
 	assert( ret != -1); 
 	setnonblocking(fd); 
+}
+
+int addsig(int sig, void (handler)(int), bool restart = true){
+	struct sigaction sa; 
+	sa.sa_handler = handler; 
+	if(restart){
+		sa.sa_flags |= SA_RESTART; 
+	}
+	sigfillset(&sa.sa_mask); 
+	assert(sigaction(sig, &sa, NULL) != -1); 
 }
 
 

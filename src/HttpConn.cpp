@@ -6,6 +6,7 @@
 #include <string.h>
 #include <errno.h>
 #include "HttpConn.h"
+#include "user.h"
 #include <netinet/in.h>
 //#include "web_function.h"
 #include <arpa/inet.h>
@@ -14,6 +15,7 @@
 #include <stdarg.h>
 #include <sys/mman.h>
 #include <sys/uio.h>
+#include <queue>
 
 const char* ok_200_title = "OK";
 const char* error_400_title = "Bad Request";
@@ -40,15 +42,29 @@ static void modfd(int epollfd, int fd, int ev){
 	epoll_ctl(epollfd, EPOLL_CTL_MOD, fd, &event); 
 }
 
-void HttpConn::close_conn(bool real_close)
+static void removefd(int epollfd, int fd)
 {
-
+	epoll_ctl( epollfd, EPOLL_CTL_DEL, fd, 0 );
+	close(fd); 
 }
 
-void HttpConn::init(int epollfd,int connfd, const struct sockaddr_in& client_address)
+
+void HttpConn::close_conn(bool real_close)
+{
+	if(real_close){
+		removefd(m_epollfd, m_sockfd); 
+		m_free_queue->push(m_index); 
+		m_util->isfree = true; 
+	}
+}
+
+void HttpConn::init(int epollfd,int connfd, const struct sockaddr_in& client_address,std::queue<int>* free_queue,int index,util_timer* util)
 {
 	m_sockfd = connfd; 
 	m_epollfd = epollfd; 
+	m_index = index; 
+	m_util = util;
+	m_free_queue = free_queue; 
 	m_client_address = client_address; 
 	int m_client_addrlen = sizeof(client_address); 
 	setnonblocking(m_sockfd); 

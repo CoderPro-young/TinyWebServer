@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <assert.h>
 #include <fcntl.h>
+#include <sys/types.h>
 //#include "web_function.h"
 
 #define MAX_EVENT_SIZE 1024 
@@ -67,6 +68,7 @@ void EventLoopThread::loop()
 {
 	struct epoll_event events[MAX_EVENT_SIZE]; 
 	printf("start event loop\n"); 
+
 	addfd(epollfd, pipefd[0]); 
 	while(!stop){
 		int num = epoll_wait(epollfd, events, MAX_EVENT_SIZE, -1); 
@@ -75,6 +77,7 @@ void EventLoopThread::loop()
 		}
 		
 		for(int i = 0; i < num; i++){
+			printf("%d events in eventloop thread \n", num); 
 			int fd = events[i].data.fd; 
 			if(fd == pipefd[0] && (events[i].events & EPOLLIN)){
 				int info[INFOSIZE]; 
@@ -106,7 +109,7 @@ void EventLoopThread::loop()
 							}
 						case DEALTIMEOUTCONN:
 							{
-								break; 
+								user_.handlerTimeOut(); 
 							}
 					
 					}

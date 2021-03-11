@@ -4,10 +4,14 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <queue>
+//#include "user.h"
 
 const int READ_BUFFER_SIZE = 4096; 
 const int WRITE_BUFFER_SIZE = 4096; 
 const int FILENAME_LEN = 128;
+
+class util_timer; 
 
 class HttpConn{
 	public:
@@ -19,35 +23,35 @@ class HttpConn{
 
 	    enum CHECK_STATE
 	    {
-		CHECK_STATE_REQUESTLINE = 0,
-		CHECK_STATE_HEADER,
-		CHECK_STATE_CONTENT
+			CHECK_STATE_REQUESTLINE = 0,
+			CHECK_STATE_HEADER,
+			CHECK_STATE_CONTENT
 	    };
 
 	    enum HTTP_CODE
 	    {
-		NO_REQUEST,
-		GET_REQUEST,
-		BAD_REQUEST,
-		NO_RESOURCE,
-		FORBIDDEN_REQUEST,
-		FILE_REQUEST,
-		INTERNAL_ERROR,
-		CLOSED_CONNECTION
+			NO_REQUEST,
+			GET_REQUEST,
+			BAD_REQUEST,
+			NO_RESOURCE,
+			FORBIDDEN_REQUEST,
+			FILE_REQUEST,
+			INTERNAL_ERROR,
+			CLOSED_CONNECTION
 	    };
 
 	    enum LINE_STATUS
 	    {
-		LINE_OK = 0,
-		LINE_BAD,
-		LINE_OPEN
+			LINE_OK = 0,
+			LINE_BAD,
+			LINE_OPEN
 	    };
 
 	public:
 		HttpConn(){}
 		~HttpConn(){}
 	public:
-		void init(int, int , const struct sockaddr_in&);
+		void init(int, int , const struct sockaddr_in&, std::queue<int>* free_queue, int, util_timer* util);
 	    void close_conn( bool real_close = true );//关闭连接
 		bool read();  // read data from socket to user buffer
 		void process();  // parse data 
@@ -56,6 +60,9 @@ class HttpConn{
 	private:
 	    int m_sockfd;
 		int m_epollfd; 
+		int m_index; 
+		std::queue<int>* m_free_queue; 
+		util_timer* m_util; 
 	    struct sockaddr_in m_client_address;
 	    int m_client_addrlen; 
 	    char m_read_buf[READ_BUFFER_SIZE];

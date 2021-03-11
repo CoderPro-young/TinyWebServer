@@ -16,8 +16,16 @@ void EventLoopThreadPool::startPool()
 void EventLoopThreadPool::addNewConn(int fd)
 {
 	int index = getNextLoop();
-        int notify = fd; 	
+    int notify = fd; 	
 	send(eventloop_ptr[index].pipefd[1], &notify, sizeof(notify), 0);  // notify eventloop thread 
+}
+
+void EventLoopThreadPool::dealTimeOut()
+{
+	int notify = -1; 
+	for(int i = 0; i < max_thread_num; i++){
+		send(eventloop_ptr[i].pipefd[1], &notify, sizeof(notify), 0); 
+	}
 }
 
 int EventLoopThreadPool::getNextLoop()

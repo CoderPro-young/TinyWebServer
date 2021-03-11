@@ -54,7 +54,10 @@ int user::addUser(int epollfd, int listenfd)
 		}
 		curr_conn_sum++; 
 		fd_to_index[connfd] = index; 
-		http_ptr[index].init(epollfd, connfd, client_address); 
+		util_ptr[index] = new util_timer(time(NULL)+ALARMTIME, connfd); 
+		timer_queue.push(util_ptr[index]); 
+		http_ptr[index].init(epollfd, connfd, client_address, &free_queue, index, util_ptr[index]); 
+		
 		addfd(epollfd, connfd); 
 		
 		bzero(&client_address, sizeof(client_address)); 
@@ -66,7 +69,12 @@ int user::addUser(int epollfd, int listenfd)
 
 int user::getIndex()
 {
-	return 0; 
+	if(free_queue.empty()){
+		return -1; 
+	}
+	int index = free_queue.front(); 
+	free_queue.pop() ; 
+	return index; 
 }
 
 void user::serverBusy()
@@ -74,18 +82,36 @@ void user::serverBusy()
 
 }
 
+void user::handlerTimeOut(){
+	while(!timer_queue.empty()){
+		util_timer* timer = timer_queue.top(); 
+		time_t t = time(NULL);
+		if(timer->isfree){
+			delete timer; 
+		}
+		else if(timer->expire <= t){
+			http_ptr[fd_to_index[timer->fd]].close_conn(); 
+			timer->isfree = true; 
+			delete timer; 
+		}
+		else{
+			break; 
+		}
+		timer_queue.pop(); 
+	}
+}
+
 void user::handler(int connfd, const epoll_event& event)
 {
 	int index = fd_to_index[connfd]; 
 	printf("handler\n"); 
 	if(event.events & EPOLLIN){
-		
 		http_ptr[index].read(); 
 		http_ptr[index].process(); 
 		//http_ptr[index].write(); 
 	}
 	else if(event.events & EPOLLOUT){
-		printf("write to socket"); 
+		printf("write to socket\n"); 
 		http_ptr[index].write(); 
 	}
 }

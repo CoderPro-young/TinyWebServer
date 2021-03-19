@@ -16,6 +16,7 @@ class EventLoopThreadPool{
 		void addNewConn(int fd); 
 		void startPool(); 	
 		void dealTimeOut(); 	
+		void stopPool(); 
 };
 
 

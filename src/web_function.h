@@ -1,6 +1,7 @@
 #ifndef WEB_FUNCTION_H_
 #define WEB_FUNCTION_H_
 
+#include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
@@ -30,7 +31,8 @@ int init_listen(){
 	inet_pton(AF_INET, "127.0.0.1", &server_address.sin_addr);
 
 	if((setsockopt(listenSocket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on))) < 0){
-
+		perror("sockopt"); 
+		exit(1); 
 	}
 	
 	int ret = bind(listenSocket, (struct sockaddr*)&server_address, socklen); 
@@ -39,7 +41,6 @@ int init_listen(){
 	ret = listen(listenSocket, LISTENQ); 
 	assert(ret != -1); 
 
-	printf("listen !\n"); 
 	#ifdef debug
 	printf("listen !\n"); 
 	#endif

@@ -7,8 +7,7 @@
 #include <assert.h>
 //#include "web_function.h"
 
-#define NEWCONN 1
-#define DEALTIMEOUTCONN -1
+
 #define EVENT_TABLE_SIZE 1024
 
 class EventLoopThread{
@@ -26,7 +25,8 @@ class EventLoopThread{
 
 			int ret = socketpair( PF_UNIX, SOCK_STREAM, 0, pipefd); 
 			assert(ret != -1); 
-
+			
+			
 		}
 
 		~EventLoopThread(){

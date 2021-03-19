@@ -49,6 +49,7 @@ static void removefd(int epollfd, int fd)
 }
 
 
+
 void HttpConn::close_conn(bool real_close)
 {
 	if(real_close){

@@ -20,6 +20,14 @@ void EventLoopThreadPool::addNewConn(int fd)
 	send(eventloop_ptr[index].pipefd[1], &notify, sizeof(notify), 0);  // notify eventloop thread 
 }
 
+void EventLoopThreadPool::stopPool(){
+	int notify = -2 ; 
+	for(int i = 0; i < max_thread_num; i++){
+		printf("demand thread[%d] quit\n", i); 
+		send(eventloop_ptr[i].pipefd[1], &notify, sizeof(notify), 0); 
+	}
+}
+
 void EventLoopThreadPool::dealTimeOut()
 {
 	int notify = -1; 

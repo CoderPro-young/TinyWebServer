@@ -10,8 +10,9 @@
 #include <vector> 
 #include "HttpConn.h"
 
-#define ALARMTIME 5
 #define MAXCONNPERTHREAD 1024 
+
+extern const int ALARMTIME; 
 
 //class HttpConn; 
 
@@ -51,14 +52,16 @@ class user{
 		}
 
 		~user(){
+
 			delete [] http_ptr; 
 		}
 
 		int addUser(int epollfd, int connfd); 
 		int getIndex(); 
-		void serverBusy(); 
+		void serverBusy(int); 
 		void handler(int connfd, const epoll_event& event); 
 		void handlerTimeOut(); 
+		void handlerInt(); 
 }; 
 
 #endif

@@ -6,6 +6,10 @@
 #include <sys/types.h>
 //#include "web_function.h"
 
+#define NEWCONN 1
+#define DEALTIMEOUTCONN -1
+#define QUIT -2 
+
 #define MAX_EVENT_SIZE 1024 
 #define INFOSIZE 4096
 
@@ -62,8 +66,6 @@ void* EventLoopThread<T>::addConn(int fd)
 }
 */
 
-
-
 void EventLoopThread::loop()
 {
 	struct epoll_event events[MAX_EVENT_SIZE]; 
@@ -82,7 +84,7 @@ void EventLoopThread::loop()
 			if(fd == pipefd[0] && (events[i].events & EPOLLIN)){
 				int info[INFOSIZE]; 
 				int info_num = recv(pipefd[0], info, INFOSIZE, 0); 
-				printf("info_num is %d \n", info_num); 
+				//printf("info_num is %d \n", info_num); 
 				//assert( info_num != -1); 
 				if(info_num == -1){
 					if(errno != EAGAIN){
@@ -90,8 +92,10 @@ void EventLoopThread::loop()
 					}
 				}
 				for(int j = 0; j < info_num/sizeof(int); j++){
+					//printf(" recv %d\n", fun(info[j])); 
 					switch (fun(info[j]))
 					{
+						
 						case NEWCONN:
 							/*
 							struct sockaddr_in client_address; 
@@ -110,12 +114,22 @@ void EventLoopThread::loop()
 						case DEALTIMEOUTCONN:
 							{
 								user_.handlerTimeOut(); 
+								break; 
+							}
+						case QUIT:
+							{
+								stop = true; 
+								//printf("recv  INT\n"); 
+								user_.handlerInt(); 
+								//printf("thread close.\n"); 
+								break; 
 							}
 					
 					}
 				}
 				
 			}
+
 			else{
 				user_.handler(fd, events[i]); 
 			}

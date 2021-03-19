@@ -29,7 +29,7 @@ static void modfd(int epollfd, int fd, int ev){
 static void addfd(int epollfd, int fd){
 	struct epoll_event ev; 
 	ev.data.fd = fd; 
-	ev.events = EPOLLIN | EPOLLET; 
+	ev.events = EPOLLIN | EPOLLET | EPOLLONESHOT | EPOLLRDHUP; 
 	int ret = epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev); 
 	assert( ret != -1); 
 	setnonblocking(fd); 
@@ -50,15 +50,19 @@ int user::addUser(int epollfd, int listenfd)
 	while(connfd > 0){
 		int index = getIndex(); // select a http_conn object to deal request  
 		if(index < 0){
-			serverBusy(); 
+			serverBusy(connfd); 
+			//return -1;
 		}
-		curr_conn_sum++; 
-		fd_to_index[connfd] = index; 
-		util_ptr[index] = new util_timer(time(NULL)+ALARMTIME, connfd); 
-		timer_queue.push(util_ptr[index]); 
-		http_ptr[index].init(epollfd, connfd, client_address, &free_queue, index, util_ptr[index]); 
+		else{
+			curr_conn_sum++; 
+			fd_to_index[connfd] = index; 
+			util_ptr[index] = new util_timer(time(NULL)+ALARMTIME, connfd); 
+			timer_queue.push(util_ptr[index]); 
+			http_ptr[index].init(epollfd, connfd, client_address, &free_queue, index, util_ptr[index]); 
+			
+			addfd(epollfd, connfd); 
+		}
 		
-		addfd(epollfd, connfd); 
 		
 		bzero(&client_address, sizeof(client_address)); 
 		connfd = accept(listenfd, (SA*)&client_address, &client_addrlen); 
@@ -66,6 +70,7 @@ int user::addUser(int epollfd, int listenfd)
 	modfd(epollfd, listenfd, EPOLLIN); 
 	return connfd; 
 }
+
 
 int user::getIndex()
 {
@@ -77,9 +82,9 @@ int user::getIndex()
 	return index; 
 }
 
-void user::serverBusy()
+void user::serverBusy(int connfd)
 {
-
+	close(connfd); 
 }
 
 void user::handlerTimeOut(){
@@ -99,6 +104,18 @@ void user::handlerTimeOut(){
 		}
 		timer_queue.pop(); 
 	}
+}
+
+void user::handlerInt(){
+	while(!timer_queue.empty()){
+		util_timer* timer = timer_queue.top(); 
+		if(!timer->isfree){
+			http_ptr[fd_to_index[timer->fd]].close_conn(); 
+		}
+		timer_queue.pop();
+		delete(timer); 
+	}
+	printf("thread free.\n"); 
 }
 
 void user::handler(int connfd, const epoll_event& event)

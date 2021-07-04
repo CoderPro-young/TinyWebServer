@@ -48,8 +48,6 @@ static void removefd(int epollfd, int fd)
 	close(fd); 
 }
 
-
-
 void HttpConn::close_conn(bool real_close)
 {
 	if(real_close){
@@ -200,14 +198,17 @@ HttpConn::HTTP_CODE HttpConn::parse_request_line(char* text)
 	if(strcasecmp(method, "GET") == 0){
 		m_method = GET; 
 	}
+	else if(strcasecmp(method, "POST") == 0){
+		m_method = POST; 
+	}
 	else{
 		return BAD_REQUEST;
 	}
-	m_url += strspn(m_url, " \t"); 
+	m_url += strspn(m_url, " \t"); // remove empty " " 
 	m_version = strpbrk(m_url, " \t"); 
 	if(!m_version)
 		return BAD_REQUEST; 
-	*m_version++ = '\0'; 
+	*m_version++ = '\0';  // add '\0' for m_url 
 	m_version += strspn(m_version, " \t"); 
 	if(strcasecmp(m_version, "HTTP/1.1") != 0){
 		return BAD_REQUEST; 
@@ -254,15 +255,27 @@ HttpConn::HTTP_CODE HttpConn::parse_headers(char* text)
 HttpConn::HTTP_CODE HttpConn::do_request()
 {
 	//need xiugai 
+	HttpConn::HTTP_CODE ret = FILE_REQUEST; 
 	strcpy(doc_root, "../page"); 
 	strcpy(m_real_file, doc_root); 
-	if(strlen(m_url) == 1){
-		strcat(m_real_file, "/default.html"); 
+	if(strchr(m_url, '?') != NULL){
+		char download_filename[FILENAME_LEN]; 
+		// parse uri to get download_filename
+		parse_uri(download_filename); 
+		strcat(m_real_file, download_filename); 
+		printf("m_real_file is %s \n", m_real_file); 
+		ret = DOWNLOAD_REQUEST; 
 	}
 	else{
-		strcat(m_real_file, m_url); 
+		if(strlen(m_url) == 1){
+		strcat(m_real_file, "/default.html"); 
+		}
+		else{
+			strcat(m_real_file, m_url); 
+		}
+		printf("real file is %s \n", m_real_file); 
 	}
-	printf("real file is %s \n", m_real_file); 
+	
 	//struct stat m_url_stat; 
 	
 	if(stat(m_real_file, &m_file_stat) < 0){
@@ -281,7 +294,17 @@ HttpConn::HTTP_CODE HttpConn::do_request()
 	int fd = open(m_real_file, O_RDONLY); 
 	m_file_address = (char*)mmap(0, m_file_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0); 
 	close(fd); 
-	return FILE_REQUEST; 
+	return ret ; 
+}
+
+void HttpConn::parse_uri(char download_filename[]){
+	//need check file 
+	memset(download_filename, '\0', FILENAME_LEN); 
+	char* fileid = strchr(m_url, '?'); 
+	fileid += 8; 
+	// get filename with fileid 
+	strcpy(download_filename, "/"); 
+	strcat(download_filename, "test.txt"); 
 }
 
 void HttpConn::unmap()
@@ -339,7 +362,7 @@ bool HttpConn::write()
 
             if (m_linger)
             {
-                init();
+                init(); // keep-alive connection 
                 return true;
             }
             else
@@ -357,7 +380,6 @@ bool HttpConn::add_response(const char *format, ...)
 		return false;
 	}
 
-        
     va_list arg_list;
     va_start(arg_list, format);
     int len = vsnprintf(m_write_buf + m_write_idx, WRITE_BUFFER_SIZE - 1 - m_write_idx, format, arg_list);
@@ -378,8 +400,12 @@ bool HttpConn::add_status_line(int status, const char *title)
     return add_response("%s %d %s\r\n", "HTTP/1.1", status, title);
 }
 
-bool HttpConn::add_headers(int content_len)
+bool HttpConn::add_headers(int content_len, bool download = false)
 {
+	if(download){
+		return add_content_length(content_len) && add_content_type(download) &&
+		add_content_disposition() && add_blank_line(); 
+	}
     return add_content_length(content_len) && add_linger() &&
            add_blank_line();
 }
@@ -389,9 +415,17 @@ bool HttpConn::add_content_length(int content_len)
     return add_response("Content-Length:%d\r\n", content_len);
 }
 
-bool HttpConn::add_content_type()
+bool HttpConn::add_content_type(bool download = false)
 {
+	if(download){
+		return add_response("Content-Type:%s\r\n", "text/plain"); 
+	}
     return add_response("Content-Type:%s\r\n", "text/html");
+}
+
+bool HttpConn::add_content_disposition()
+{
+	return add_response("Content-Disposition:%s;%s\r\n", "attachment", "test.txt"); 
 }
 
 bool HttpConn::add_linger()
@@ -458,13 +492,24 @@ bool HttpConn::process_write(HTTP_CODE ret)
 			printf("file len is 0\n"); 
             const char *ok_string = "<html><body></body></html>";
             add_headers(strlen(ok_string));
-            if (!add_content(ok_string)){
-				fprintf(stderr, "add content\n"); 
-				return false;
-			}
-                
+            // if (!add_content(ok_string)){
+			// 	fprintf(stderr, "add content\n"); 
+			// 	return false;
+			// }        
         }
+		break; 
     }
+	case DOWNLOAD_REQUEST:
+	{
+		printf("download file \n"); 
+		add_status_line(200, ok_200_title); 
+		if(m_file_stat.st_size != 0){
+			add_headers(m_file_stat.st_size, true); 
+		}
+		// write(); 
+		bytes_to_send = m_write_idx; 
+		return true; 
+	}
     default:
         return false;
     }
@@ -475,18 +520,59 @@ bool HttpConn::process_write(HTTP_CODE ret)
     return true;
 }
 
+ssize_t HttpConn::Send(int fd, void* userbuf, size_t n)
+{
+	size_t nleft = n; 
+	size_t nsend; 
+	char* bufp = (char*)userbuf; 
+
+	while(nleft > 0){
+		if((nsend = send(fd, bufp, n, 0)) <= 0){
+			if(errno == EINTR){
+				nsend = 0; 
+			}
+			else if(errno == EAGAIN){
+				break; 
+			}
+			else{
+				return -1; 
+			}
+		}
+
+		nleft -= nsend; 
+		bufp += nsend; 
+	}
+	return n; 
+}
+
+bool HttpConn::download()
+{
+	int len = Send(m_sockfd, m_write_buf, bytes_to_send); 
+	if(len < 0){
+		return false; 
+	}
+	Send(m_sockfd, m_file_address, m_file_stat.st_size); 
+}
+
 void HttpConn::process()
 {
 	HTTP_CODE read_ret = process_read(); 
 	if(read_ret == BAD_REQUEST){
 		modfd(m_epollfd, m_sockfd, EPOLLIN); 
 	}
-	if(read_ret == FILE_REQUEST){
-		printf("file request.\n"); 
-	}
-	printf("process_read\n"); 
+
+	// Debug 
+	// if(read_ret == FILE_REQUEST){
+	// 	printf("file request.\n"); 
+	// }
 	bool write_ret = process_write(read_ret); 
-	printf("process_write\n"); 
+	if(read_ret == DOWNLOAD_REQUEST){
+		printf("download request"); 
+		// transmit file 
+		download(); 
+		return ; // 
+	}
+
 	if(!write_ret){
 		printf("close conn\n"); 
 		close_conn(); 

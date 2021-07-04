@@ -10,8 +10,8 @@
 #define DEALTIMEOUTCONN -1
 #define QUIT -2 
 
-#define MAX_EVENT_SIZE 1024 
-#define INFOSIZE 4096
+#define MAX_EVENT_SIZE 4096 
+#define INFOSIZE 16384
 
 static void unix_error(const char* err)
 {
@@ -79,7 +79,7 @@ void EventLoopThread::loop()
 		}
 		
 		for(int i = 0; i < num; i++){
-			printf("%d events in eventloop thread \n", num); 
+			// printf("%d events in eventloop thread \n", num); 
 			int fd = events[i].data.fd; 
 			if(fd == pipefd[0] && (events[i].events & EPOLLIN)){
 				int info[INFOSIZE]; 

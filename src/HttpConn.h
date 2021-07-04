@@ -18,7 +18,7 @@ class HttpConn{
 		enum METHOD
 		{
 			GET = 0,
-			Post
+			POST
 		};
 
 	    enum CHECK_STATE
@@ -36,8 +36,9 @@ class HttpConn{
 			NO_RESOURCE,
 			FORBIDDEN_REQUEST,
 			FILE_REQUEST,
+			DOWNLOAD_REQUEST,
 			INTERNAL_ERROR,
-			CLOSED_CONNECTION
+			CLOSED_CONNECTIOND
 	    };
 
 	    enum LINE_STATUS
@@ -92,22 +93,26 @@ class HttpConn{
 	private:
 		void init(); 
 		HTTP_CODE process_read();
-	    	bool process_write(HTTP_CODE ret);
-	    	HTTP_CODE parse_request_line(char *text);
-	    	HTTP_CODE parse_headers(char *text);
-	    	HTTP_CODE parse_content(char *text);
-	    	HTTP_CODE do_request();
-	    	char *get_line() { return m_read_buf + m_start_line; };
-	    	LINE_STATUS parse_line();
-	    	void unmap();
-	    	bool add_response(const char *format, ...);
-	    	bool add_content(const char *content);
-	    	bool add_status_line(int status, const char *title);
-	    	bool add_headers(int content_length);
-	    	bool add_content_type();
-	    	bool add_content_length(int content_length);
-	    	bool add_linger();
-	    	bool add_blank_line();
+		bool process_write(HTTP_CODE ret);
+		HTTP_CODE parse_request_line(char *text);
+		HTTP_CODE parse_headers(char *text);
+		HTTP_CODE parse_content(char *text);
+		HTTP_CODE do_request();
+		char *get_line() { return m_read_buf + m_start_line; };
+		LINE_STATUS parse_line();
+		void parse_uri(char download_filename[]); 
+		ssize_t Send(int fd, void* usrbuf, size_t n); 
+		bool download(); 
+		void unmap();
+		bool add_response(const char *format, ...);
+		bool add_content(const char *content);
+		bool add_status_line(int status, const char *title);
+		bool add_headers(int content_length, bool download);
+		bool add_content_type(bool download);
+		bool add_content_disposition(); 
+		bool add_content_length(int content_length);
+		bool add_linger();
+		bool add_blank_line();
 }; 
 
 #endif 

@@ -78,7 +78,6 @@ int main(int argc, char* argv[])
 	addsig(SIGINT, sig_handler); 
 	addsig(SIGALRM, sig_handler); 
 
-	
 	alarm(ALARMTIME); 
 
 	while(!stop){
@@ -96,7 +95,6 @@ int main(int argc, char* argv[])
 			if(fd == listenfd){
 				printf("should accept connect \n"); 
 				eventLoopThreadPool_.addNewConn(fd); 
-				
 			}
 			else if(fd == sig_pipefd[0] && (events[i].events & EPOLLIN)){
 				//printf("time out\n"); 

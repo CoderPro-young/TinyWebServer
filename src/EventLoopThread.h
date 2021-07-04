@@ -26,7 +26,6 @@ class EventLoopThread{
 			int ret = socketpair( PF_UNIX, SOCK_STREAM, 0, pipefd); 
 			assert(ret != -1); 
 			
-			
 		}
 
 		~EventLoopThread(){

@@ -1,6 +1,8 @@
 ﻿# TinyWebServer
 ## 运行示意图
 ![html](https://github.com/CoderPro-young/TinyWebServer/blob/main/image/html.png)
+![alice](https://github.com/CoderPro-young/TinyWebServer/blob/main/image/alice.png)
+![test](https://github.com/CoderPro-young/TinyWebServer/blob/main/image/test.png)
 ## 简介
 c++实现的轻量级web服务器，采用reactor模式加非阻塞IO实现，主线程负责监听新连接以及信号的处理，工作线程负责建立新连接以及处理客户请求。整体遵循*one loop per thread*的设计，等待在一个event loop上，工作线程由一个线程池进行管理。通过小根堆维护一个定时器，关闭不活跃的连接。 
 

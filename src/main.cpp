@@ -78,7 +78,7 @@ int main(int argc, char* argv[])
 	addsig(SIGINT, sig_handler); 
 	addsig(SIGALRM, sig_handler); 
 
-	alarm(ALARMTIME); 
+	// alarm(ALARMTIME); 
 
 	while(!stop){
 		int num; 

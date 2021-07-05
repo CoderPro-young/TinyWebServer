@@ -9,7 +9,8 @@
 
 const int READ_BUFFER_SIZE = 4096; 
 const int WRITE_BUFFER_SIZE = 4096; 
-const int FILENAME_LEN = 128;
+const int FILENAME_LEN = 64;
+const int TYPELEN = 32; 
 
 class util_timer; 
 
@@ -76,10 +77,12 @@ class HttpConn{
 	    METHOD m_method;
 	    char m_real_file[FILENAME_LEN];
 		char doc_root[FILENAME_LEN]; 
+		char m_download_filename[FILENAME_LEN]; 
 	    char *m_url;
 	    char *m_version;
 	    char *m_host;
 	    int m_content_length;
+		char m_content_type[TYPELEN]; 
 	    bool m_linger;
 	    char *m_file_address;
 	    struct stat m_file_stat;

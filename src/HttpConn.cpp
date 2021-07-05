@@ -27,6 +27,9 @@ const char* error_404_form = "The requested file was not found on this server.\n
 const char* error_500_title = "Internal Error";
 const char* error_500_form = "There was an unusual problem serving the requested file.\n";
 
+static char* pdf = "application/pdf"; 
+static char* text = "text/plain"; 
+
 static int setnonblocking(int fd){
 	int old_option = fcntl(fd, F_GETFL); 
 	int new_option = old_option | O_NONBLOCK; 
@@ -258,8 +261,10 @@ HttpConn::HTTP_CODE HttpConn::do_request()
 	HttpConn::HTTP_CODE ret = FILE_REQUEST; 
 	strcpy(doc_root, "../page"); 
 	strcpy(m_real_file, doc_root); 
+	printf("m_url is %s \n", m_url); 
 	if(strchr(m_url, '?') != NULL){
 		char download_filename[FILENAME_LEN]; 
+		strcat(m_real_file, "/download/"); 
 		// parse uri to get download_filename
 		parse_uri(download_filename); 
 		strcat(m_real_file, download_filename); 
@@ -303,8 +308,23 @@ void HttpConn::parse_uri(char download_filename[]){
 	char* fileid = strchr(m_url, '?'); 
 	fileid += 8; 
 	// get filename with fileid 
-	strcpy(download_filename, "/"); 
-	strcat(download_filename, "test.txt"); 
+	putchar(*fileid); 
+	printf("\n"); 
+
+	strcpy(m_content_type, text); 
+
+	if(*fileid == '1'){
+		strcpy(download_filename, "test.txt"); 
+	}
+	else if(*fileid == '2'){
+		strcpy(download_filename, "alice.txt"); 
+	}
+	else{
+		strcpy(download_filename, "xiaolin-network.pdf"); 
+		strcpy(m_content_type, pdf); 
+	}
+	strcpy(m_download_filename, download_filename); 
+	
 }
 
 void HttpConn::unmap()
@@ -418,14 +438,15 @@ bool HttpConn::add_content_length(int content_len)
 bool HttpConn::add_content_type(bool download = false)
 {
 	if(download){
-		return add_response("Content-Type:%s\r\n", "text/plain"); 
+		return add_response("Content-Type:%s\r\n", m_content_type); 
 	}
     return add_response("Content-Type:%s\r\n", "text/html");
 }
 
-bool HttpConn::add_content_disposition()
+bool HttpConn::add_content_disposition(/*char filename[]*/)
 {
-	return add_response("Content-Disposition:%s;%s\r\n", "attachment", "test.txt"); 
+	// return add_response("Content-Disposition:%s;filename=%s\r\n", "attachment", "test.txt"); 
+	return add_response("Content-Disposition:%s;filename=%s\r\n", "attachment", m_download_filename); 
 }
 
 bool HttpConn::add_linger()
@@ -463,6 +484,14 @@ bool HttpConn::process_write(HTTP_CODE ret)
             return false;
         break;
     }
+	case NO_RESOURCE:
+	{
+		add_status_line(404, error_404_title);
+        add_headers(strlen(error_404_form));
+        if (!add_content(error_404_form))
+            return false;
+        break;
+	}
     case FORBIDDEN_REQUEST:
     {
         add_status_line(403, error_403_title);
@@ -492,10 +521,7 @@ bool HttpConn::process_write(HTTP_CODE ret)
 			printf("file len is 0\n"); 
             const char *ok_string = "<html><body></body></html>";
             add_headers(strlen(ok_string));
-            // if (!add_content(ok_string)){
-			// 	fprintf(stderr, "add content\n"); 
-			// 	return false;
-			// }        
+       
         }
 		break; 
     }
@@ -511,6 +537,7 @@ bool HttpConn::process_write(HTTP_CODE ret)
 		return true; 
 	}
     default:
+		printf("default\n"); 
         return false;
     }
     m_iv[0].iov_base = m_write_buf;
@@ -549,9 +576,26 @@ bool HttpConn::download()
 {
 	int len = Send(m_sockfd, m_write_buf, bytes_to_send); 
 	if(len < 0){
+		fprintf(stderr, "headers failed\n"); 
 		return false; 
 	}
-	Send(m_sockfd, m_file_address, m_file_stat.st_size); 
+	fprintf(stdout, "headers completed\n"); 
+	size_t packet = 1024; 
+	size_t nleft = m_file_stat.st_size; 
+	size_t nsend = 0; 
+	while(nleft > 0){
+		len = Send(m_sockfd, m_file_address + nsend, m_file_stat.st_size); 
+		if(len < 0){
+			fprintf(stderr, "data failed\n"); 
+			return false; 
+		}
+		nsend += len; 
+		nleft -= len; 
+	}
+	printf("data completed\n"); 
+	unmap();
+    modfd(m_epollfd, m_sockfd, EPOLLIN);
+	init(); 
 }
 
 void HttpConn::process()
@@ -567,7 +611,7 @@ void HttpConn::process()
 	// }
 	bool write_ret = process_write(read_ret); 
 	if(read_ret == DOWNLOAD_REQUEST){
-		printf("download request"); 
+		printf("download request\n"); 
 		// transmit file 
 		download(); 
 		return ; // 
